@@ -571,35 +571,35 @@ ui <- fluidPage(
                        in \u2462 and \u2463. Here is how it is derived:"),
                      p(strong("Step 1 \u2014 start with conditional probability (\u2463):")),
                      formula_box(
-                       p("P(A | B)  =  P(A \u2229 B)  \u00f7  P(B)")
+                       p(strong("P(A | B)  =  P(A \u2229 B)  \u00f7  P(B)"))
                      ),
                      p(strong("Step 2 \u2014 replace the numerator using the Multiplication Rule (\u2462):")),
                      p("From \u2462 we know P(A \u2229 B) = P(B | A) \u00d7 P(A).
                        Substituting this into the numerator:"),
                      formula_box(
-                       p("P(A | B)  =  [P(B | A) \u00d7 P(A)]  \u00f7  P(B)")
+                       p(strong("P(A | B)  =  [P(B | A) \u00d7 P(A)]  \u00f7  P(B)"))
                      ),
                      p(strong("Step 3 \u2014 replace the denominator using the Law of Total Probability (\u2463):")),
                      p("From \u2463 we know that P(B) can be written as a weighted sum across
                        all mutually exclusive groups. For two groups A and A\u1d9c:"),
                      formula_box(
-                       p("P(B)  =  P(B | A) \u00d7 P(A)  +  P(B | A\u1d9c) \u00d7 P(A\u1d9c)")
+                       p(strong("P(B)  =  P(B | A) \u00d7 P(A)  +  P(B | A\u1d9c) \u00d7 P(A\u1d9c)"))
                      ),
                      p("Substituting this into the denominator gives the full Bayes' theorem:"),
                      formula_box(
                        p(strong("P(A | B)  =  [P(B | A) \u00d7 P(A)] \u00f7")),
-                       p(strong("  [P(B | A) \u00d7 P(A)  +  P(B | A\u1d9c) \u00d7 P(A\u1d9c)]"))
+                       p(strong("[P(B | A) \u00d7 P(A)  +  P(B | A\u1d9c) \u00d7 P(A\u1d9c)]"))
                      ),
                      p(strong("Step 4 \u2014 applied to medical testing:")),
-                     p("Substituting Disease for A and Test+ for B:"),
+                     p("Substituting Disease for A and Test+ for B gives the Probability of the Disease, given a positive test:"),
                      formula_box(
-                       p(strong("P(Disease | Test+)")),
-                       p(strong("=  [P(Test+ | Disease) \u00d7 P(Disease)] \u00f7 ")),
+                       p(strong("P(Disease | Test+) =  [P(Test+ | Disease) \u00d7 P(Disease)] \u00f7 ")),
                        p(strong(" [P(Test+ | Disease) \u00d7 P(Disease)  +  P(Test+ | No Disease) \u00d7 P(No Disease)]")),
-                       br(),
-                       p("P(Test+ | Disease) = Sensitivity (true positive rate)"),
-                       p("P(Disease) = Prevalence (prior probability)"),
-                       p("P(Test+ | No Disease) = 1 \u2212 Specificity (false positive rate)")
+                    
+                       p("where:"),
+                       p(strong("P(Test+ | Disease)"), " = Sensitivity (true positive rate)"),
+                       p(strong("P(Disease)"), " = Prevalence in population (prior probability)"),
+                       p(strong("P(Test+ | No Disease)"),  " = 1 \u2212 Specificity (false positive rate)")
                      ),
                      border_col = "#E91E63"
                    )
@@ -626,15 +626,15 @@ ui <- fluidPage(
                    h4("Adjust the parameters"),
                    br(),
                    sliderInput("prev",
-                               "Prevalence \u2014 P(Disease):",
+                               "Prevalence = P(Disease):",
                                min = 0.001, max = 0.500,
                                value = 0.010, step = 0.001),
                    sliderInput("sens",
-                               "Sensitivity \u2014 P(Test+ | Disease):",
+                               "Sensitivity = P(Test+ | Disease):",
                                min = 0.50, max = 1.00,
                                value = 0.95, step = 0.01),
                    sliderInput("spec",
-                               "Specificity \u2014 P(Test\u2212 | No Disease):",
+                               "Specificity = P(Test\u2212 | No Disease):",
                                min = 0.50, max = 1.00,
                                value = 0.95, step = 0.01),
                    br(),
@@ -654,8 +654,7 @@ ui <- fluidPage(
             column(12,
                    h4("Worked examples: check the sliders yourself"),
                    wellPanel(
-                     p("The two examples below use published values from the medical literature.
-                  Set the sliders to the values given and check whether the app returns
+                     p("The examples below use real world values. Set the sliders to the values given and check whether the app returns
                   the correct PPV and NPV."),
                      br(),
                      p(strong("Example 1 \u2014 COVID-19 rapid antigen test")),
@@ -670,7 +669,7 @@ ui <- fluidPage(
                      ),
                      div(class = "result-box",
                          p(strong("Expected: PPV \u2248 48.6%,  NPV \u2248 99.4%")),
-                         p("Even with an accurate test, fewer than half of positive results
+                         p("Even with an accurate test, fewer than half (i.e. 48.6%) of positive results
                     are true positives when prevalence is only 5%. The other half
                     are false alarms."),
                          p(em("This is why mass COVID-19 screening in very low-prevalence
@@ -1307,13 +1306,13 @@ server <- function(input, output, session) {
         tags$tr(
           style = "background-color:#c8e6c9;",
           tags$td(style = "padding:4px;",
-                  strong("PPV \u2014 P(Disease | Test+):")),
+                  strong("PPV = P(Disease | Test+):")),
           tags$td(style = "padding:4px; font-size:105%; font-weight:bold;",
                   paste0(round(v$ppv * 100, 1), "%"))
         ),
         tags$tr(
           tags$td(style = "padding:4px;",
-                  strong("NPV \u2014 P(No Disease | Test\u2212):")),
+                  strong("NPV = P(No Disease | Test\u2212):")),
           tags$td(style = "padding:4px;",
                   paste0(round(v$npv * 100, 1), "%"))
         )
