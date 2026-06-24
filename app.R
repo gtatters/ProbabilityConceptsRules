@@ -104,11 +104,24 @@ draw_venn <- function(type = "overlap",
          col = adjustcolor(col_only, alpha.f = 0.30))
     text(-1.55, 1.0, "S", cex = 1.4, col = "#555555", font = 2)
     polygon(xs_A, ys_A, col = "white", border = col_A, lwd = 2)
-    polygon(xs_B, ys_B, col = fill_B,  border = col_B, lwd = 2)
+    polygon(xs_B, ys_B, col = adjustcolor(col_only, alpha.f = 0.30),  border = col_B, lwd = 2)
+    d <- cx_B - cx_A
+    if (d < 2 * r) {
+      alpha <- acos(d / (2 * r))
+      arc_A <- seq(-alpha, alpha, length.out = 200)
+      ax <- cx_A + r * cos(arc_A)
+      ay <- cy   + r * sin(arc_A)
+      arc_B <- seq(pi - alpha, pi + alpha, length.out = 200)
+      bx <- cx_B + r * cos(arc_B)
+      by <- cy   + r * sin(arc_B)
+      lens_x <- c(ax, rev(bx))
+      lens_y <- c(ay, rev(by))
+      polygon(lens_x, lens_y, col = "white", border = NA)
+    }
     
   } else if (highlight == "AgivenB") {
     polygon(xs_A, ys_A, col = fill_A,  border = col_A, lwd = 2)
-    polygon(xs_B, ys_B, col = fill_B,  border = col_B, lwd = 2)
+    polygon(xs_B, ys_B, col = fill_B,  border = col_B, lwd = 0.5)
     # Analytically compute lens for AgivenB highlight
     d <- cx_B - cx_A
     if (d < 2 * r) {
@@ -146,7 +159,7 @@ draw_venn <- function(type = "overlap",
     text(cx_B + 0.2, 0, paste0("P(B)=", round(pB, 2)),
          col = label_col_B, cex = 0.85)
     mid_x <- (cx_A + cx_B) / 2
-    text(mid_x, 0, paste0("P(A\u2229B)\n=", round(pAB, 2)),
+    text(mid_x, 0, paste0("P(A\u22C2B)\n=", round(pAB, 2)),
          col = label_col_AB, cex = 0.78, font = 2)
   }
   if (type == "mutex") {
@@ -154,7 +167,7 @@ draw_venn <- function(type = "overlap",
     mutex_col_B <- if (!is.null(highlight) && highlight == "AuB") "white" else col_B
     text(cx_A, 0, paste0("P(A)=", round(pA, 2)), col = mutex_col_A, cex = 0.85)
     text(cx_B, 0, paste0("P(B)=", round(pB, 2)), col = mutex_col_B, cex = 0.85)
-    text(0, 0, "P(A\u2229B)=0", col = "#666666", cex = 0.85)
+    text(0, 0, "P(A\u22C2B)=0", col = "#666666", cex = 0.85)
   }
 }
 
@@ -295,30 +308,30 @@ ui <- fluidPage(
                        tags$tr(
                          tags$td(style = "padding:6px 10px;", strong("Union")),
                          tags$td(style = "padding:6px 10px;", "A OR B (or both)"),
-                         tags$td(style = "padding:6px 10px;", "A \u222a B")
+                         tags$td(style = "padding:6px 10px;", "A \u22C3 B")
                        ),
                        tags$tr(style = "background-color:#f5f5f5;",
                                tags$td(style = "padding:6px 10px;", strong("Intersection")),
                                tags$td(style = "padding:6px 10px;", "A AND B (both occur)"),
-                               tags$td(style = "padding:6px 10px;", "A \u2229 B")
+                               tags$td(style = "padding:6px 10px;", "A \u22C2 B")
                        ),
                        tags$tr(
                          tags$td(style = "padding:6px 10px;", strong("Mutually Exclusive")),
                          tags$td(style = "padding:6px 10px;",
-                                 "A and B cannot both occur; P(A\u2229B) = 0"),
-                         tags$td(style = "padding:6px 10px;", "A \u2229 B = \u2205")
+                                 "A and B cannot both occur; P(A\u22C2B) = 0"),
+                         tags$td(style = "padding:6px 10px;", "A \u22C2 B = \u2205")
                        ),
                        tags$tr(style = "background-color:#f5f5f5;",
                                tags$td(style = "padding:6px 10px;", strong("Independence")),
                                tags$td(style = "padding:6px 10px;",
                                        "Knowing A occurred tells you nothing about B"),
-                               tags$td(style = "padding:6px 10px;", "P(A\u2229B) = P(A)\u00d7P(B)")
+                               tags$td(style = "padding:6px 10px;", "P(A\u22C2B) = P(A)\u00d7P(B)")
                        ),
                        tags$tr(
                          tags$td(style = "padding:6px 10px;", strong("Dependence")),
                          tags$td(style = "padding:6px 10px;",
                                  "Knowing A changes the probability of B"),
-                         tags$td(style = "padding:6px 10px;", "P(A\u2229B) \u2260 P(A)\u00d7P(B)")
+                         tags$td(style = "padding:6px 10px;", "P(A\u22C2B) \u2260 P(A)\u00d7P(B)")
                        )
                      )
                    )
@@ -337,14 +350,14 @@ ui <- fluidPage(
                    info_box(
                      strong("The Addition Rule"),
                      p("Use this rule when you want the probability that event A ",
-                       strong("or"), " event B occurs (i.e., the union A \u222a B)."),
+                       strong("or"), " event B occurs (i.e., the union A \u22C3 B)."),
                      formula_box(
                        p(strong("General rule:"),
-                         "  P(A \u222a B)  =  P(A) + P(B) \u2212 P(A \u2229 B)"),
+                         "  P(A \u22C3 B)  =  P(A) + P(B) \u2212 P(A \u22C2 B)"),
                        p(strong("Mutually exclusive events:"),
-                         "  P(A \u222a B)  =  P(A) + P(B)")
+                         "  P(A \u22C3 B)  =  P(A) + P(B)")
                      ),
-                     p("We subtract P(A \u2229 B) to avoid counting the overlap twice.
+                     p("We subtract P(A \u22C2 B) to avoid counting the overlap twice.
                   When events are mutually exclusive, there is no overlap, so nothing
                   needs to be subtracted."),
                      border_col = col_B
@@ -393,12 +406,12 @@ ui <- fluidPage(
                    info_box(
                      strong("The Multiplication Rule"),
                      p("Use this rule when you want the probability that both A ",
-                       strong("and"), " B occur (i.e., the intersection A \u2229 B)."),
+                       strong("and"), " B occur (i.e., the intersection A \u22C2 B)."),
                      formula_box(
                        p(strong("General rule (dependent events):"),
-                         "  P(A \u2229 B)  =  P(A) \u00d7 P(B | A)"),
+                         "  P(A \u22C2 B)  =  P(A) \u00d7 P(B | A)"),
                        p(strong("Independent events:"),
-                         "  P(A \u2229 B)  =  P(A) \u00d7 P(B)")
+                         "  P(A \u22C2 B)  =  P(A) \u00d7 P(B)")
                      ),
                      p("P(B | A) is the conditional probability of B ", em("given"), " A has
                   already occurred. When events are independent, knowing A gives no
@@ -456,7 +469,7 @@ ui <- fluidPage(
                   occurred. We restrict our attention to the world where B is true \u2014
                   circle B becomes our new sample space."),
                      formula_box(
-                       p(strong("P(A | B)  =  P(A \u2229 B) / P(B)"))
+                       p(strong("P(A | B)  =  P(A \u22C2 B) / P(B)"))
                      ),
                      p("Visually: P(A | B) is the fraction of circle B that overlaps with A.
                   The dashed border on B in the diagram below indicates it is the
@@ -483,7 +496,7 @@ ui <- fluidPage(
                             sliderInput("cond_pB", "P(B):", 0.05, 0.70, 0.40, 0.05)
                      )
                    ),
-                   sliderInput("cond_pAB", "P(A \u2229 B):", 0.01, 0.50, 0.10, 0.01),
+                   sliderInput("cond_pAB", "P(A \u22C2 B):", 0.01, 0.50, 0.10, 0.01),
                    uiOutput("cond_result")
             )
           ),
@@ -498,20 +511,20 @@ ui <- fluidPage(
                        tags$li("P(black coat) = 0.60,  so P(white coat) = 0.40"),
                        tags$li("P(long tail) = 0.50"),
                        tags$li("P(long tail | black coat) = 0.75"),
-                       tags$li("P(black coat \u2229 long tail) = 0.60 \u00d7 0.75 = 0.45")
+                       tags$li("P(black coat \u22C2 long tail) = 0.60 \u00d7 0.75 = 0.45")
                      ),
                      br(),
                      p(strong("Question 1: Given a mouse has a long tail, what is the probability
                   it has a black coat?")),
                      p("We apply the conditional probability formula directly:"),
                      div(class = "result-box",
-                         p(strong("P(black coat | long tail)  =  P(black coat \u2229 long tail) / P(long tail)")),
+                         p(strong("P(black coat | long tail)  =  P(black coat \u22C2 long tail) / P(long tail)")),
                          p("= 0.45 / 0.50  =  ", strong("0.90")),
                          p("Knowing a mouse has a long tail makes it very likely (90%) to also
                     have a black coat \u2014 much higher than the unconditional P(black coat) = 0.60.
                     This is dependence in action."),
                          p(em("Note: do not confuse P(black coat | long tail) = 0.90 with
-                    P(black coat \u2229 long tail) = 0.45. The first is a conditional
+                    P(black coat \u22C2 long tail) = 0.45. The first is a conditional
                     probability (a fraction of long-tailed mice); the second is a
                     joint probability (a fraction of all mice). Conditional probability
                     is always relative to a restricted group, not the whole population."))
@@ -571,10 +584,10 @@ ui <- fluidPage(
                        in \u2462 and \u2463. Here is how it is derived:"),
                      p(strong("Step 1 \u2014 start with conditional probability (\u2463):")),
                      formula_box(
-                       p(strong("P(A | B)  =  P(A \u2229 B)  \u00f7  P(B)"))
+                       p(strong("P(A | B)  =  P(A \u22C2 B)  \u00f7  P(B)"))
                      ),
                      p(strong("Step 2 \u2014 replace the numerator using the Multiplication Rule (\u2462):")),
-                     p("From \u2462 we know P(A \u2229 B) = P(B | A) \u00d7 P(A).
+                     p("From \u2462 we know P(A \u22C2 B) = P(B | A) \u00d7 P(A).
                        Substituting this into the numerator:"),
                      formula_box(
                        p(strong("P(A | B)  =  [P(B | A) \u00d7 P(A)]  \u00f7  P(B)"))
@@ -785,8 +798,8 @@ server <- function(input, output, session) {
                        "Event A only"            = "A",
                        "Event B only"            = "B",
                        "Complement of A"         = "Ac",
-                       "Union  A \u222a B"       = "AuB",
-                       "Intersection A \u2229 B" = "AiB"
+                       "Union  A \u22C3 B"       = "AuB",
+                       "Intersection A \u22C2 B" = "AiB"
                      ),
                      selected = "both"),
         tags$hr(),
@@ -811,10 +824,10 @@ server <- function(input, output, session) {
         tags$hr(),
         radioButtons("add_highlight", "Highlight region:",
                      choices = c(
-                       "Union A \u222a B"         = "AuB",
+                       "Union A \u22C3 B"         = "AuB",
                        "Event A"                 = "A",
                        "Event B"                 = "B",
-                       "Intersection A \u2229 B"  = "AiB"
+                       "Intersection A \u22C2 B"  = "AiB"
                      ),
                      selected = "AuB")
       )
@@ -826,7 +839,7 @@ server <- function(input, output, session) {
         tags$hr(),
         radioButtons("mult_highlight", "Highlight region:",
                      choices = c(
-                       "Intersection A \u2229 B" = "AiB",
+                       "Intersection A \u22C2 B" = "AiB",
                        "Event A"                = "A",
                        "Event B"                = "B"
                      ),
@@ -879,13 +892,13 @@ server <- function(input, output, session) {
                   "A"    = "Event A is highlighted (pink). It represents all outcomes where A occurs.",
                   "B"    = "Event B is highlighted (pink). It represents all outcomes where B occurs.",
                   "Ac"   = "The complement of A (A\u1d9c) is highlighted \u2014 every outcome in S that is NOT in A.",
-                  "AuB"  = "The union A \u222a B (pink) includes every outcome in A or B or both.",
-                  "AiB"  = "The intersection A \u2229 B (pink) includes only outcomes in BOTH A and B."
+                  "AuB"  = "The union A \u22C3 B (pink) includes every outcome in A or B or both.",
+                  "AiB"  = "The intersection A \u22C2 B (pink) includes only outcomes in BOTH A and B."
     )
     rel_note <- switch(input$rel_type,
                        "overlap" = "The circles overlap \u2014 events share outcomes (dependent).",
                        "mutex"   = "The circles do not overlap \u2014 events are mutually exclusive.",
-                       "indep"   = "The overlap reflects independence: P(A\u2229B) = P(A)\u00d7P(B)."
+                       "indep"   = "The overlap reflects independence: P(A\u22C2B) = P(A)\u00d7P(B)."
     )
     div(style = "font-size:88%; color:#555; margin-top:4px;",
         em(cap), br(), em(rel_note))
@@ -901,10 +914,10 @@ server <- function(input, output, session) {
                                              "Some outcomes belong to both A and B. Knowing A occurred changes the probability of B.")),
                        "mutex"   = tagList(p(strong("Mutually exclusive events:"),
                                              "A and B cannot happen at the same time. If A occurs, B is impossible,
-        and vice versa. P(A \u2229 B) = 0.")),
+        and vice versa. P(A \u22C2 B) = 0.")),
                        "indep"   = tagList(p(strong("Independent events:"),
                                              "Knowing A occurred gives no information about B.
-        The probability of B is unchanged. P(A \u2229 B) = P(A) \u00d7 P(B)."))
+        The probability of B is unchanged. P(A \u22C2 B) = P(A) \u00d7 P(B)."))
     )
     
     con_text <- switch(con,
@@ -916,13 +929,13 @@ server <- function(input, output, session) {
                   For example, B = 'patient actually has the disease'."),
                        "Ac"   = p("The complement A\u1d9c (pink region) contains every outcome in S that is
                   not in A. Note: P(A) + P(A\u1d9c) = 1."),
-                       "AuB"  = p("The union A \u222a B (pink) means A ", strong("or"), " B or both occur.
+                       "AuB"  = p("The union A \u22C3 B (pink) means A ", strong("or"), " B or both occur.
                   This is what the \u2461 Addition Rule calculates."),
                        "AiB"  = if (input$rel_type == "mutex") {
-                         p("The intersection A \u2229 B is ", strong("empty"),
+                         p("The intersection A \u22C2 B is ", strong("empty"),
                            " \u2014 A and B share no outcomes. This is what it means to be mutually exclusive.")
                        } else {
-                         p("The intersection A \u2229 B (pink) means both A ", strong("and"),
+                         p("The intersection A \u22C2 B (pink) means both A ", strong("and"),
                            " B occur simultaneously. This is what the \u2462 Multiplication Rule calculates.")
                        }
     )
@@ -967,7 +980,7 @@ server <- function(input, output, session) {
     pAB_min <- add_pAB_min()
     pAB_max <- add_pAB_max()
     pAB_val <- min(max(0.10, pAB_min), pAB_max)
-    sliderInput("add_pAB", "P(A \u2229 B):",
+    sliderInput("add_pAB", "P(A \u22C2 B):",
                 min = pAB_min, max = pAB_max,
                 value = pAB_val, step = 0.01)
   })
@@ -998,13 +1011,13 @@ server <- function(input, output, session) {
     pAuB <- pA + pB - pAB
     
     if (input$add_type == "mutex") {
-      formula_str <- paste0("P(A \u222a B)  =  P(A) + P(B)  =  ",
+      formula_str <- paste0("P(A \u22C3 B)  =  P(A) + P(B)  =  ",
                             pA, " + ", pB, "  =  ", round(pAuB, 3))
-      note <- "Events are mutually exclusive, so P(A \u2229 B) = 0 and nothing is subtracted."
+      note <- "Events are mutually exclusive, so P(A \u22C2 B) = 0 and nothing is subtracted."
     } else {
-      formula_str <- paste0("P(A \u222a B)  =  ", pA, " + ", pB, " \u2212 ", pAB,
+      formula_str <- paste0("P(A \u22C3 B)  =  ", pA, " + ", pB, " \u2212 ", pAB,
                             "  =  ", round(pAuB, 3))
-      note <- "We subtract P(A \u2229 B) to avoid counting the overlap twice."
+      note <- "We subtract P(A \u22C2 B) to avoid counting the overlap twice."
     }
     
     div(class = "result-box",
@@ -1012,7 +1025,7 @@ server <- function(input, output, session) {
         tags$code(formula_str),
         br(), br(),
         p(note),
-        p(strong("Answer: P(A \u222a B) = "), strong(round(pAuB, 3)))
+        p(strong("Answer: P(A \u22C3 B) = "), strong(round(pAuB, 3)))
     )
   })
   
@@ -1065,9 +1078,9 @@ server <- function(input, output, session) {
         p("Let A = 'person has type A blood' (A+ or A\u2212) \u2192 P(A) = 0.36 + 0.06 = 0.42"),
         p("Let B = 'person is Rh positive' (O+, A+, B+, or AB+) \u2192 P(B) = 0.39 + 0.36 + 0.08 + 0.025 = 0.855"),
         p("These events ", strong("overlap"), ": a person can be both type A ", em("and"),
-          " Rh positive (i.e. A+). P(A \u2229 B) = 0.36."),
+          " Rh positive (i.e. A+). P(A \u22C2 B) = 0.36."),
         div(class = "result-box",
-            p(strong("P(type A or Rh+)  =  P(A) + P(B) \u2212 P(A \u2229 B)")),
+            p(strong("P(type A or Rh+)  =  P(A) + P(B) \u2212 P(A \u22C2 B)")),
             p("= 0.42 + 0.855 \u2212 0.36  =  ", strong("0.915")),
             p("About 91.5% of people are either type A or Rh positive (or both).")
         )
@@ -1105,7 +1118,7 @@ server <- function(input, output, session) {
         br(),
         p("What is the probability that a randomly selected person is type A ",
           strong("or"), " type B?"),
-        p("Since these groups are mutually exclusive, P(A \u2229 B) = 0."),
+        p("Since these groups are mutually exclusive, P(A \u22C2 B) = 0."),
         div(class = "result-box",
             p(strong("P(type A or type B)  =  P(A) + P(B)")),
             p("= 0.42 + 0.09  =  ", strong("0.51")),
@@ -1157,13 +1170,13 @@ server <- function(input, output, session) {
     if (input$mult_type == "indep") {
       req(input$mult_pB)
       pB <- input$mult_pB
-      formula_str <- paste0("P(A \u2229 B)  =  P(A) \u00d7 P(B)  =  ",
+      formula_str <- paste0("P(A \u22C2 B)  =  P(A) \u00d7 P(B)  =  ",
                             pA, " \u00d7 ", pB, "  =  ", round(pAB, 3))
       note <- "Events are independent: knowing A occurred does not change P(B)."
     } else {
       req(input$mult_pBgivenA)
       pBgA <- input$mult_pBgivenA
-      formula_str <- paste0("P(A \u2229 B)  =  P(A) \u00d7 P(B | A)  =  ",
+      formula_str <- paste0("P(A \u22C2 B)  =  P(A) \u00d7 P(B | A)  =  ",
                             pA, " \u00d7 ", pBgA, "  =  ", round(pAB, 3))
       note <- "Events are dependent: P(B | A) differs from P(B) because A gives information about B."
     }
@@ -1173,7 +1186,7 @@ server <- function(input, output, session) {
         tags$code(formula_str),
         br(), br(),
         p(note),
-        p(strong("Answer: P(A \u2229 B) = "), strong(round(pAB, 3)))
+        p(strong("Answer: P(A \u22C2 B) = "), strong(round(pAB, 3)))
     )
   })
   
@@ -1190,7 +1203,7 @@ server <- function(input, output, session) {
           p("Test 2 has sensitivity of 85% \u2014 i.e. P(T2+) = 0.85."),
           p("What is the probability of testing positive on ", strong("both"), "?"),
           div(class = "result-box",
-              p(strong("P(T1+ \u2229 T2+) = P(T1+) \u00d7 P(T2+)")),
+              p(strong("P(T1+ \u22C2 T2+) = P(T1+) \u00d7 P(T2+)")),
               p("= 0.90 \u00d7 0.85 = ", strong("0.765")),
               p("There is roughly a 76.5% chance of both tests returning positive
                for someone who truly has the condition."),
@@ -1221,7 +1234,7 @@ server <- function(input, output, session) {
           p("Because the traits are ", strong("dependent"),
             ", we use the general multiplication rule:"),
           div(class = "result-box",
-              p(strong("P(black coat \u2229 long tail) = P(black coat) \u00d7 P(long tail | black coat)")),
+              p(strong("P(black coat \u22C2 long tail) = P(black coat) \u00d7 P(long tail | black coat)")),
               p("= 0.60 \u00d7 0.75 = ", strong("0.45")),
               br(),
               p("Compare this to what we would get if we ", strong("incorrectly"),
@@ -1261,7 +1274,7 @@ server <- function(input, output, session) {
     pAgivenB <- pAB / pB
     
     div(class = "result-box",
-        p(strong("P(A | B)  =  P(A \u2229 B) / P(B)")),
+        p(strong("P(A | B)  =  P(A \u22C2 B) / P(B)")),
         tags$code(paste0(round(pAB, 2), " / ", round(pB, 2),
                          "  =  ", round(pAgivenB, 3))),
         br(), br(),
