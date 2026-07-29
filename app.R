@@ -24,14 +24,81 @@ col_bg    <- "#f9f9f9"
 btn_blue  <- "#2196F3"
 
 # ---------------------------
+# Helper: area of the lens (intersection) of two circles of
+# radius rA, rB whose centres are distance d apart
+# ---------------------------
+circle_overlap_area <- function(rA, rB, d) {
+  if (d >= rA + rB) return(0)
+  if (d <= abs(rA - rB)) return(pi * min(rA, rB)^2)
+  part1 <- rA^2 * acos((d^2 + rA^2 - rB^2) / (2 * d * rA))
+  part2 <- rB^2 * acos((d^2 + rB^2 - rA^2) / (2 * d * rB))
+  part3 <- 0.5 * sqrt((-d + rA + rB) * (d + rA - rB) * (d - rA + rB) * (d + rA + rB))
+  part1 + part2 - part3
+}
+
+# ---------------------------
+# Helper: solve (via uniroot, base R) for the centre-to-centre
+# distance d that gives two circles (radius rA, rB) a target
+# intersection AREA. This is what makes the Venn diagrams
+# area-proportional: circles resize with P(A)/P(B), and their
+# separation is solved so the overlap matches P(A and B) exactly.
+# ---------------------------
+solve_venn_distance <- function(rA, rB, target_area, gap = 0.03) {
+  max_area <- pi * min(rA, rB)^2
+  if (target_area <= 1e-9) {
+    return(rA + rB + gap)                 # no overlap -> mutually exclusive
+  }
+  if (target_area >= max_area - 1e-9) {
+    return(abs(rA - rB))                  # smaller circle fully inside larger
+  }
+  uniroot(function(d) circle_overlap_area(rA, rB, d) - target_area,
+          lower = abs(rA - rB) + 1e-6,
+          upper = rA + rB - 1e-6)$root
+}
+
+# ---------------------------
+# Helper: polygon tracing the lens-shaped intersection of two
+# circles (possibly different radii) with centres on a horizontal
+# line at height cy. Returns NULL if the circles do not overlap.
+# ---------------------------
+lens_polygon <- function(cx_A, cx_B, cy, rA, rB, d, n = 200) {
+  if (d >= rA + rB - 1e-9) return(NULL)
+  if (d <= abs(rA - rB) + 1e-9) {
+    theta <- seq(0, 2 * pi, length.out = n)
+    if (rA <= rB) {
+      return(list(x = cx_A + rA * cos(theta), y = cy + rA * sin(theta)))
+    } else {
+      return(list(x = cx_B + rB * cos(theta), y = cy + rB * sin(theta)))
+    }
+  }
+  a_A <- (d^2 + rA^2 - rB^2) / (2 * d)
+  a_B <- (d^2 + rB^2 - rA^2) / (2 * d)
+  alpha_A <- acos(max(-1, min(1, a_A / rA)))
+  alpha_B <- acos(max(-1, min(1, a_B / rB)))
+  arc_A <- seq(-alpha_A, alpha_A, length.out = n)
+  ax <- cx_A + rA * cos(arc_A)
+  ay <- cy   + rA * sin(arc_A)
+  arc_B <- seq(pi - alpha_B, pi + alpha_B, length.out = n)
+  bx <- cx_B + rB * cos(arc_B)
+  by <- cy   + rB * sin(arc_B)
+  list(x = c(ax, rev(bx)), y = c(ay, rev(by)))
+}
+
+# ---------------------------
 # Helper: draw a Venn diagram using base R
 #   type: "indep", "mutex", "overlap"
 #   highlight: NULL, "A", "B", "AuB", "AiB", "Ac", "AgivenB"
+#   proportional: FALSE = original fixed-size circles (Tab 1);
+#                 TRUE  = circle areas scaled to pA/pB, and the
+#                 separation solved so the overlap area matches
+#                 pAB (mutually exclusive events -> no overlap)
 # ---------------------------
 draw_venn <- function(type = "overlap",
                       highlight = NULL,
                       pA = 0.4, pB = 0.4, pAB = 0.16,
-                      label_A = "A", label_B = "B") {
+                      label_A = "A", label_B = "B",
+                      pA_prefix = "P(A)", pB_prefix = "P(B)",
+                      proportional = FALSE) {
   
   old_par <- par(mar = c(1, 1, 2, 1), bg = col_bg)
   on.exit(par(old_par), add = TRUE)
@@ -45,25 +112,48 @@ draw_venn <- function(type = "overlap",
   text(-1.55, 1.0, "S", cex = 1.4, col = "#555555", font = 2)
   
   theta <- seq(0, 2 * pi, length.out = 300)
+  cy <- 0
   
-  # Circle centres & radii
-  if (type == "mutex") {
-    cx_A <- -0.85; cx_B <- 0.85
+  if (proportional) {
+    # ---- Area-proportional geometry: circle AREA = pA/pB (scaled),
+    #      separation solved so overlap area matches pAB exactly ----
+    area_scale <- 3.5
+    r_floor    <- 0.15
+    rA <- max(sqrt(pA * area_scale / pi), r_floor)
+    rB <- max(sqrt(pB * area_scale / pi), r_floor)
+    
+    target_area <- if (type == "mutex") 0 else pAB * area_scale
+    d <- solve_venn_distance(rA, rB, target_area)
+    
+    cx_A <- -d / 2
+    cx_B <-  d / 2
+    r    <- NA   # unused in this branch; kept so downstream refs to
+                 # "r" only occur in the non-proportional branch below
   } else {
-    cx_A <- -0.45; cx_B <- 0.45
+    # ---- Original fixed-geometry (used for Tab 1: Concepts) --------
+    if (type == "mutex") {
+      cx_A <- -0.85; cx_B <- 0.85
+    } else {
+      cx_A <- -0.45; cx_B <- 0.45
+    }
+    r  <- 0.70
+    rA <- r; rB <- r
+    d  <- cx_B - cx_A
   }
-  cy <- 0; r <- 0.70
   
-  xs_A <- cx_A + r * cos(theta)
-  ys_A <- cy  + r * sin(theta)
-  xs_B <- cx_B + r * cos(theta)
-  ys_B <- cy  + r * sin(theta)
+  xs_A <- cx_A + rA * cos(theta)
+  ys_A <- cy  + rA * sin(theta)
+  xs_B <- cx_B + rB * cos(theta)
+  ys_B <- cy  + rB * sin(theta)
   
   # --- fill colours ---
   fill_A  <- adjustcolor(col_A,  alpha.f = 0.30)
   fill_B  <- adjustcolor(col_B,  alpha.f = 0.30)
   fill_hi <- adjustcolor(col_only, alpha.f = 0.45)
   none    <- adjustcolor("white", alpha.f = 0)
+  
+  # Lens (intersection) polygon - only needed/used in proportional mode
+  lens <- if (proportional) lens_polygon(cx_A, cx_B, cy, rA, rB, d) else NULL
   
   if (is.null(highlight)) {
     polygon(xs_A, ys_A, col = fill_A, border = col_A, lwd = 2)
@@ -84,9 +174,9 @@ draw_venn <- function(type = "overlap",
   } else if (highlight == "AiB") {
     polygon(xs_A, ys_A, col = fill_A, border = col_A, lwd = 2)
     polygon(xs_B, ys_B, col = fill_B, border = col_B, lwd = 2)
-    # Analytically compute the lens-shaped intersection boundary
-    d <- cx_B - cx_A
-    if (d < 2 * r) {
+    if (proportional) {
+      if (!is.null(lens)) polygon(lens$x, lens$y, col = fill_hi, border = NA)
+    } else if (d < 2 * r) {
       alpha <- acos(d / (2 * r))
       arc_A <- seq(-alpha, alpha, length.out = 200)
       ax <- cx_A + r * cos(arc_A)
@@ -105,8 +195,9 @@ draw_venn <- function(type = "overlap",
     text(-1.55, 1.0, "S", cex = 1.4, col = "#555555", font = 2)
     polygon(xs_A, ys_A, col = "white", border = col_A, lwd = 2)
     polygon(xs_B, ys_B, col = adjustcolor(col_only, alpha.f = 0.30),  border = col_B, lwd = 2)
-    d <- cx_B - cx_A
-    if (d < 2 * r) {
+    if (proportional) {
+      if (!is.null(lens)) polygon(lens$x, lens$y, col = "white", border = NA)
+    } else if (d < 2 * r) {
       alpha <- acos(d / (2 * r))
       arc_A <- seq(-alpha, alpha, length.out = 200)
       ax <- cx_A + r * cos(arc_A)
@@ -122,9 +213,9 @@ draw_venn <- function(type = "overlap",
   } else if (highlight == "AgivenB") {
     polygon(xs_A, ys_A, col = fill_A,  border = col_A, lwd = 2)
     polygon(xs_B, ys_B, col = fill_B,  border = col_B, lwd = 0.5)
-    # Analytically compute lens for AgivenB highlight
-    d <- cx_B - cx_A
-    if (d < 2 * r) {
+    if (proportional) {
+      if (!is.null(lens)) polygon(lens$x, lens$y, col = fill_hi, border = NA)
+    } else if (d < 2 * r) {
       alpha <- acos(d / (2 * r))
       arc_A <- seq(-alpha, alpha, length.out = 200)
       ax <- cx_A + r * cos(arc_A)
@@ -145,28 +236,37 @@ draw_venn <- function(type = "overlap",
   }
   
   # Labels
-  text(cx_A - 0.35, 0.75, label_A, col = col_A, cex = 1.5, font = 2)
-  text(cx_B + 0.35, 0.75, label_B, col = col_B, cex = 1.5, font = 2)
+  if (proportional) {
+    text(cx_A - rA * 0.45, cy + rA * 0.6, label_A, col = col_A, cex = 1.5, font = 2)
+    text(cx_B + rB * 0.45, cy + rB * 0.6, label_B, col = col_B, cex = 1.5, font = 2)
+  } else {
+    text(cx_A - 0.35, 0.75, label_A, col = col_A, cex = 1.5, font = 2)
+    text(cx_B + 0.35, 0.75, label_B, col = col_B, cex = 1.5, font = 2)
+  }
   
-  # Probability annotations
+  # Probability annotations -----------------------------------------
+  # P(A) and P(B) are anchored to the bottom corners of the S
+  # rectangle (not inside the circles) so they stay legible no matter
+  # how the circle sizes change with proportional resizing. Font
+  # colour matches the corresponding event's fill colour.
+  if (!is.null(pA)) {
+    text(-1.65, -0.98, paste0(pA_prefix, " = ", round(pA, 2)),
+         col = col_A, cex = 0.95, font = 2, adj = c(0, 0.5))
+    text( 1.65, -0.98, paste0(pB_prefix, " = ", round(pB, 2)),
+         col = col_B, cex = 0.95, font = 2, adj = c(1, 0.5))
+  }
+  
+  # Intersection probability label stays put (inside the lens /
+  # between the circles), even if the circles' own resizing means it
+  # sometimes sits partly over a boundary - left as-is intentionally.
   if (!is.null(pA) && type != "mutex") {
     hi_active    <- !is.null(highlight) && highlight %in% c("AuB", "AiB", "AgivenB")
-    label_col    <- if (!is.null(highlight) && highlight == "AuB") "white" else col_A
-    label_col_B  <- if (!is.null(highlight) && highlight == "AuB") "white" else col_B
     label_col_AB <- if (hi_active) "white" else col_AB
-    text(cx_A - 0.2, 0, paste0("P(A)=", round(pA, 2)),
-         col = label_col, cex = 0.85)
-    text(cx_B + 0.2, 0, paste0("P(B)=", round(pB, 2)),
-         col = label_col_B, cex = 0.85)
     mid_x <- (cx_A + cx_B) / 2
     text(mid_x, 0, paste0("P(A\u22C2B)\n=", round(pAB, 2)),
          col = label_col_AB, cex = 0.78, font = 2)
   }
   if (type == "mutex") {
-    mutex_col_A <- if (!is.null(highlight) && highlight == "AuB") "white" else col_A
-    mutex_col_B <- if (!is.null(highlight) && highlight == "AuB") "white" else col_B
-    text(cx_A, 0, paste0("P(A)=", round(pA, 2)), col = mutex_col_A, cex = 0.85)
-    text(cx_B, 0, paste0("P(B)=", round(pB, 2)), col = mutex_col_B, cex = 0.85)
     text(0, 0, "P(A\u22C2B)=0", col = "#666666", cex = 0.85)
   }
 }
@@ -1000,7 +1100,8 @@ server <- function(input, output, session) {
               highlight = hi,
               pA  = input$add_pA,
               pB  = input$add_pB,
-              pAB = add_pAB_val())
+              pAB = add_pAB_val(),
+              proportional = TRUE)
   }, bg = col_bg)
   
   output$add_result <- renderUI({
@@ -1159,7 +1260,9 @@ server <- function(input, output, session) {
               highlight = hi,
               pA  = input$mult_pA,
               pB  = if (input$mult_type == "indep") input$mult_pB else input$mult_pBgivenA,
-              pAB = mult_pAB())
+              pAB = mult_pAB(),
+              pB_prefix = if (input$mult_type == "indep") "P(B)" else "P(B | A)",
+              proportional = TRUE)
   }, bg = col_bg)
   
   output$mult_result <- renderUI({
@@ -1263,7 +1366,8 @@ server <- function(input, output, session) {
               highlight = "AgivenB",
               pA  = input$cond_pA,
               pB  = input$cond_pB,
-              pAB = pAB_safe)
+              pAB = pAB_safe,
+              proportional = TRUE)
   }, bg = col_bg)
   
   output$cond_result <- renderUI({
