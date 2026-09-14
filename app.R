@@ -1022,7 +1022,7 @@ server <- function(input, output, session) {
     
     con_text <- switch(con,
                        "both" = p("Both circles represent events (sets of outcomes). The rectangle is the
-                  sample space S \u2014 all possible outcomes."),
+                  sample space S \u2014 all possible outcomes. (Note: S is not to scale)"),
                        "A"    = p("Event A (pink) is any specific outcome or set of outcomes we define.
                   For example, A = 'patient tests positive'."),
                        "B"    = p("Event B (pink) is another event of interest.
