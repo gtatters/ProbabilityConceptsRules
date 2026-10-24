@@ -128,7 +128,7 @@ draw_venn <- function(type = "overlap",
     cx_A <- -d / 2
     cx_B <-  d / 2
     r    <- NA   # unused in this branch; kept so downstream refs to
-                 # "r" only occur in the non-proportional branch below
+    # "r" only occur in the non-proportional branch below
   } else {
     # ---- Original fixed-geometry (used for Tab 1: Concepts) --------
     if (type == "mutex") {
@@ -253,7 +253,7 @@ draw_venn <- function(type = "overlap",
     text(-1.65, -0.98, paste0(pA_prefix, " = ", round(pA, 2)),
          col = col_A, cex = 0.95, font = 2, adj = c(0, 0.5))
     text( 1.65, -0.98, paste0(pB_prefix, " = ", round(pB, 2)),
-         col = col_B, cex = 0.95, font = 2, adj = c(1, 0.5))
+          col = col_B, cex = 0.95, font = 2, adj = c(1, 0.5))
   }
   
   # Intersection probability label stays put (inside the lens /
@@ -297,6 +297,27 @@ formula_box <- function(...) {
   ), ...)
 }
 
+# ---------------------------
+# Safari-safe plotting
+# Draws a base-R plot as a PNG image. Stand-in for renderPlot(), which
+# currently fails in Safari under Shinylive. Use with imageOutput().
+# bg sets the image background (renderPlot's bg argument).
+# ---------------------------
+render_base <- function(id, session, draw, bg = "white") {
+  renderImage({
+    cd <- session$clientData
+    w  <- cd[[paste0("output_", id, "_width")]]
+    h  <- cd[[paste0("output_", id, "_height")]]
+    req(w > 0, h > 0)
+    pr <- cd$pixelratio
+    if (is.null(pr)) pr <- 1
+    f <- tempfile(fileext = ".png")
+    png(f, width = w * pr, height = h * pr, res = 72 * pr, bg = bg)
+    tryCatch(draw(), finally = dev.off())
+    list(src = f, contentType = "image/png", width = w, height = h)
+  }, deleteFile = TRUE)
+}
+
 # =========================================================
 # UI
 # =========================================================
@@ -305,7 +326,22 @@ ui <- fluidPage(
   tags$head(
     tags$style(HTML(paste0("
       body { font-size: 15px; }
-      .nav-tabs > li > a { font-size: 14px; }
+      .nav-tabs > li.active > a,
+      .nav-tabs > li.active > a:hover,
+      .nav-tabs > li.active > a:focus {
+        color: #009499 !important;
+        font-size: 12px; font-weight: bold;
+        background-color: #f0fafa !important;
+      }
+      .nav-tabs > li > a {
+        color: #666;
+        font-size: 12px;
+        padding: 5px 9px;
+      }
+      .nav-tabs > li > a:hover {
+        color: #009499;
+        background-color: #f0fafa;
+      }
       .well { background-color: #f7f7f7; border: 1px solid #ddd; }
       .sidebar { background-color: #f7f7f7; padding: 15px;
                  border-radius: 8px; border: 1px solid #ddd; }
@@ -371,7 +407,7 @@ ui <- fluidPage(
           fluidRow(
             column(6,
                    h4("Venn Diagram"),
-                   plotOutput("venn_concepts", height = "280px"),
+                   imageOutput("venn_concepts", height = "280px"),
                    uiOutput("venn_concepts_caption")
             ),
             column(6,
@@ -468,7 +504,7 @@ ui <- fluidPage(
           fluidRow(
             column(5,
                    h4("Venn Diagram"),
-                   plotOutput("venn_addition", height = "300px")
+                   imageOutput("venn_addition", height = "300px")
             ),
             column(7,
                    h4("Try it"),
@@ -524,7 +560,7 @@ ui <- fluidPage(
           fluidRow(
             column(5,
                    h4("Venn Diagram"),
-                   plotOutput("venn_mult", height = "300px")
+                   imageOutput("venn_mult", height = "300px")
             ),
             column(7,
                    h4("Try it"),
@@ -583,7 +619,7 @@ ui <- fluidPage(
             column(5,
                    h4("Venn Diagram"),
                    p(em("Dashed border = the conditioning event (B)")),
-                   plotOutput("venn_cond", height = "280px")
+                   imageOutput("venn_cond", height = "280px")
             ),
             column(7,
                    h4("Try it"),
@@ -708,7 +744,7 @@ ui <- fluidPage(
                      formula_box(
                        p(strong("P(Disease | Test+) =  [P(Test+ | Disease) \u00d7 P(Disease)] \u00f7 ")),
                        p(strong(" [P(Test+ | Disease) \u00d7 P(Disease)  +  P(Test+ | No Disease) \u00d7 P(No Disease)]")),
-                    
+                       
                        p("where:"),
                        p(strong("P(Test+ | Disease)"), " = Sensitivity (true positive rate)"),
                        p(strong("P(Disease)"), " = Prevalence in population (prior probability)"),
@@ -733,7 +769,7 @@ ui <- fluidPage(
                 negative."),
                    br(),
                    h4("Predicted outcomes in 10 000 people"),
-                   plotOutput("bayes_bar", height = "260px")
+                   imageOutput("bayes_bar", height = "260px")
             ),
             column(7,
                    h4("Adjust the parameters"),
@@ -979,7 +1015,7 @@ server <- function(input, output, session) {
   # ===========================================================
   # TAB 1: Concepts Venn
   # ===========================================================
-  output$venn_concepts <- renderPlot({
+  output$venn_concepts <- render_base("venn_concepts", session, function() {
     req(input$concept, input$rel_type)
     draw_venn(type      = input$rel_type,
               highlight = input$concept)
@@ -1092,7 +1128,7 @@ server <- function(input, output, session) {
     min(input$add_pAB, add_pAB_max())
   })
   
-  output$venn_addition <- renderPlot({
+  output$venn_addition <- render_base("venn_addition", session, function() {
     req(input$add_type, input$add_pA, input$add_pB)
     hi <- if (!is.null(input$add_highlight)) input$add_highlight else "AuB"
     if (input$add_type == "mutex" && hi == "AiB") hi <- "AuB"
@@ -1252,7 +1288,7 @@ server <- function(input, output, session) {
     }
   })
   
-  output$venn_mult <- renderPlot({
+  output$venn_mult <- render_base("venn_mult", session, function() {
     req(input$mult_type)
     hi    <- if (!is.null(input$mult_highlight)) input$mult_highlight else "AiB"
     vtype <- if (input$mult_type == "indep") "indep" else "overlap"
@@ -1359,7 +1395,7 @@ server <- function(input, output, session) {
   # ===========================================================
   # TAB 4: Conditional Probability
   # ===========================================================
-  output$venn_cond <- renderPlot({
+  output$venn_cond <- render_base("venn_cond", session, function() {
     req(input$cond_pA, input$cond_pB, input$cond_pAB)
     pAB_safe <- min(input$cond_pAB, input$cond_pA * 0.95, input$cond_pB * 0.95)
     draw_venn(type      = "overlap",
@@ -1437,7 +1473,7 @@ server <- function(input, output, session) {
     )
   })
   
-  output$bayes_bar <- renderPlot({
+  output$bayes_bar <- render_base("bayes_bar", session, function() {
     v <- bayes_vals()
     N <- 10000
     
